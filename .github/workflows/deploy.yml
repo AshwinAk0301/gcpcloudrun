@@ -8,7 +8,7 @@ on:
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: us-central1
-  REPOSITORY: test
+  REPOSITORY: java-repo 
   SERVICE: java-app
   IMAGE: java-app
 
