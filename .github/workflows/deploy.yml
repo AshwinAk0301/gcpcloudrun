@@ -39,30 +39,16 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Docker Authentication
-        run: |
-          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
       - name: Build Docker Image
-        run: |
-          docker build \
-            --tag us-central1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }} \
-            .
+        run: docker build -t us-central1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }} .
 
       - name: Push Docker Image
-        run: |
-          docker push \
-            us-central1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }}
+        run: docker push us-central1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }}
 
       - name: Deploy to Cloud Run
-        run: |
-          gcloud run deploy ${{ env.SERVICE }} \
-            --image us-central1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }} \
-            --platform managed \
-            --region ${{ env.REGION }} \
-            --allow-unauthenticated
+        run: gcloud run deploy ${{ env.SERVICE }} --image us-central1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }} --platform managed --region ${{ env.REGION }} --allow-unauthenticated
 
       - name: Show Cloud Run URL
-        run: |
-          gcloud run services describe ${{ env.SERVICE }} \
-            --region ${{ env.REGION }} \
-            --format='value(status.url)'
+        run: gcloud run services describe ${{ env.SERVICE }} --region ${{ env.REGION }} --format='value(status.url)'
