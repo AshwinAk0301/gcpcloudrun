@@ -1,71 +1,21 @@
-name: Build and Deploy to Cloud Run
+version: 0.2
 
-on:
-  push:
-    branches:
-      - main
+phases:
+  pre_build:
+    commands:
+      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - aws ecr get-login-password --region ap-southeast-1 | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.ap-southeast-1.amazonaws.com
 
-env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  REGION: us-central1
-  REPOSITORY: java-repo 
-  SERVICE: java-app
-  IMAGE: java-app
+  build:
+    commands:
+      - docker build -t myapp .
+      - docker tag myapp:latest $ACCOUNT_ID.dkr.ecr.ap-southeast-1.amazonaws.com/myapp:latest
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  post_build:
+    commands:
+      - docker push $ACCOUNT_ID.dkr.ecr.ap-southeast-1.amazonaws.com/myapp:latest
 
-    steps:
-
-      - name: Checkout Source
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Build Spring Boot Application
-        run: mvn clean package -DskipTests
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}'
-
-      - name: Setup Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Configure Docker Authentication
-        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-
-      - name: Disable Docker BuildKit
-        run: echo "DOCKER_BUILDKIT=0" >> $GITHUB_ENV
-
-      - name: Verify Files
-        run: |
-          pwd
-          ls -la
-          ls -la target
-
-      - name: Build Docker Image
-        run: docker build --file Dockerfile --tag us-central1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }} .
-
-      - name: Push Docker Image
-        run: docker push us-central1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }}
-
-      - name: Deploy to Cloud Run
-        run: |
-          gcloud run deploy ${{ env.SERVICE }} \
-          --image us-central1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }} \
-          --platform managed \
-          --region ${{ env.REGION }} \
-          --allow-unauthenticated
-
-      - name: Show Cloud Run URL
-        run: |
-          gcloud run services describe ${{ env.SERVICE }} \
-          --region ${{ env.REGION }} \
-          --format='value(status.url)'
+artifacts:
+  files:
+    - appspec.yml
+    - scripts/**/*
